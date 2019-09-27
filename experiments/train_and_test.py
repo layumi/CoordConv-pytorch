@@ -2,13 +2,17 @@ import numpy as np
 import matplotlib.pyplot as plt
 import torch
 import torch.nn as nn
+from torch.nn import init
 import torch.utils.data as utils
 import torch.nn.functional as F
 
+from coordconv import CoordConv2d
 from torch.autograd import Variable
 # from torchsummary import summary
 
-datatype = 'uniform'
+#datatype = 'uniform'
+datatype = 'quadrant'
+
 assert datatype in ['uniform', 'quadrant']
 
 if datatype == 'uniform':
@@ -86,6 +90,18 @@ else:
 train_onehot = train_onehot.reshape((-1, 64 * 64)).astype('int64')
 test_onehot = test_onehot.reshape((-1, 64 * 64)).astype('int64')
 
+def weights_init_kaiming(m):
+    classname = m.__class__.__name__
+    # print(classname)
+    if classname.find('Conv') != -1:
+        init.kaiming_normal_(m.weight.data, a=0, mode='fan_in') # For old pytorch, you may use kaiming_normal.
+    elif classname.find('Linear') != -1:
+        init.kaiming_normal_(m.weight.data, a=0, mode='fan_out')
+        init.constant_(m.bias.data, 0.0)
+    elif classname.find('BatchNorm1d') != -1:
+        init.normal_(m.weight.data, 1.0, 0.02)
+        init.constant_(m.bias.data, 0.0)
+
 # model definition
 
 class Net(nn.Module):
@@ -107,7 +123,7 @@ class Net(nn.Module):
         return x
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-net = Net().to(device)
+net = Net().apply(weights_init_kaiming).to(device)
 
 # summary(net, input_size=(2, 64, 64))
 # ----------------------------------------------------------------
@@ -130,7 +146,7 @@ train_tensor_x = torch.stack([torch.Tensor(i) for i in train_set])
 train_tensor_y = torch.stack([torch.LongTensor(i) for i in train_onehot])
 
 train_dataset = utils.TensorDataset(train_tensor_x,train_tensor_y)
-train_dataloader = utils.DataLoader(train_dataset, batch_size=32, shuffle=False)
+train_dataloader = utils.DataLoader(train_dataset, batch_size=32, shuffle=True)
 
 test_tensor_x = torch.stack([torch.Tensor(i) for i in test_set])
 test_tensor_y = torch.stack([torch.LongTensor(i) for i in test_onehot])
@@ -146,7 +162,7 @@ def cross_entropy_one_hot(input, target):
 
 criterion = cross_entropy_one_hot
 
-epochs = 10
+epochs = 15
 
 def train(epoch, net, train_dataloader, optimizer, criterion, device):
     net.train()

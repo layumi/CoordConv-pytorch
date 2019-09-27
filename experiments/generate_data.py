@@ -4,7 +4,9 @@ import torch
 import torch.nn as nn
 from sklearn.model_selection import train_test_split
 
-datatype = 'uniform'
+#datatype = 'uniform'
+datatype = 'quadrant'
+
 assert datatype in ['uniform', 'quadrant']
 
 if not os.path.exists('data-uniform/'):
